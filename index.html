@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>سر وادي الرمال</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#17100b;color:#fff;font-family:Tahoma,Arial,sans-serif;overflow:hidden}
+#game{position:relative;width:100vw;height:100vh;background:linear-gradient(#d89b55 0 42%,#b86f32 42%);touch-action:none}
+canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#3b2114dd;border:2px solid #f4c47a;border-radius:16px;padding:9px 16px;text-align:center;min-width:260px;box-shadow:0 5px 18px #0006}
+.hud b{color:#ffd37d}.help{font-size:12px;margin-top:3px;color:#ffe8c5}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.card{background:#2a1710ee;border:2px solid #f0bb68;border-radius:22px;padding:25px;max-width:420px;margin:20px;box-shadow:0 12px 40px #0008}
+.card h1{margin:0 0 10px;color:#ffd27a}.card p{line-height:1.7;margin:7px 0}
+button{border:0;border-radius:14px;padding:12px 20px;background:#d98a35;color:#fff;font-size:17px;font-weight:bold;margin-top:10px}
+.hidden{display:none!important}
+.controls{position:absolute;bottom:18px;left:18px;display:grid;grid-template-columns:58px 58px 58px;grid-template-rows:58px 58px;gap:6px;direction:ltr}
+.controls button{margin:0;padding:0;font-size:25px;background:#3b2114bb;border:2px solid #f4c47a;color:#fff;backdrop-filter:blur(4px)}
+.up{grid-column:2}.left{grid-column:1;grid-row:2}.down{grid-column:2;grid-row:2}.right{grid-column:3;grid-row:2}
+@media(min-width:800px){.controls{opacity:.65}}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="c"></canvas>
+<div class="hud">
+  <div>💎 الجواهر: <b id="score">0</b> / 3</div>
+  <div class="help">WASD أو الأسهم • اجمع 3 جواهر ثم اذهب إلى البئر</div>
+</div>
+<div id="overlay" class="msg">
+  <div class="card">
+    <h1>🏜️ سر وادي الرمال</h1>
+    <p>اجمع <b>3 جواهر</b> مخفية في الوادي، ثم اتجه إلى <b>البئر القديم</b> لكشف السر.</p>
+    <p>التحكم: الأسهم أو WASD — وعلى الهاتف استخدم الأزرار أسفل الشاشة.</p>
+    <button id="start">ابدأ اللعبة</button>
+  </div>
+</div>
+<div id="win" class="msg hidden">
+  <div class="card">
+    <h1>🎉 وجدت السر!</h1>
+    <p>جمعت الجواهر الثلاث ووصلت إلى البئر القديم.</p>
+    <button id="again">العب مرة أخرى</button>
+  </div>
+</div>
+<div class="controls">
+  <button class="up" data-k="up">▲</button>
+  <button class="left" data-k="left">◀</button>
+  <button class="down" data-k="down">▼</button>
+  <button class="right" data-k="right">▶</button>
+</div>
+</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H,dpr,started=false,won=false,score=0;
+const keys={up:false,down:false,left:false,right:false};
+const player={x:120,y:120,r:16,s:3.2};
+let gems=[],well={x:0,y:0,r:34},decor=[];
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);reset(false)}
+addEventListener('resize',resize);
+function reset(show=true){
+ score=0; won=false; document.getElementById('score').textContent=0;
+ player.x=Math.min(120,W-60);player.y=Math.min(170,H-120);
+ well.x=W-100;well.y=H-125;
+ gems=[
+  {x:W*.30,y:H*.30,t:0},{x:W*.62,y:H*.28,t:1},{x:W*.45,y:H*.68,t:2}
+ ].map((g,i)=>({...g,x:Math.max(55,Math.min(W-55,g.x)),y:Math.max(100,Math.min(H-70,g.y)),got:false}));
+ decor=[];
+ for(let i=0;i<55;i++) decor.push({x:Math.random()*W,y:80+Math.random()*(H-100),r:3+Math.random()*9});
+ if(show){document.getElementById('win').classList.add('hidden')}
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ // sand bands
+ ctx.fillStyle='#d79a53';ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#c47c3a';ctx.beginPath();ctx.moveTo(0,H*.43);for(let x=0;x<=W;x+=80)ctx.quadraticCurveTo(x+40,H*.36+Math.sin(x)*12,x+80,H*.43);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+ // dunes
+ ctx.globalAlpha=.18;ctx.fillStyle='#fff0c2';
+ for(let i=0;i<5;i++){ctx.beginPath();ctx.ellipse((i+.3)*W/5,H*.72+(i%2)*45,180,55,0,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=1;
+ // rocks/cacti
+ for(const d of decor){ctx.fillStyle=d.r>8?'#7b4b29':'#9a5e30';ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill()}
+ // well
+ ctx.fillStyle='#4c3427';ctx.beginPath();ctx.arc(well.x,well.y,well.r+8,0,7);ctx.fill();
+ ctx.fillStyle='#80604a';ctx.beginPath();ctx.arc(well.x,well.y,well.r,0,7);ctx.fill();
+ ctx.fillStyle='#17110e';ctx.beginPath();ctx.arc(well.x,well.y,well.r-9,0,7);ctx.fill();
+ ctx.strokeStyle='#d9a45b';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(well.x-39,well.y-31);ctx.lineTo(well.x+39,well.y-31);ctx.stroke();
+ ctx.fillStyle='#fff0ad';ctx.font='bold 14px Tahoma';ctx.textAlign='center';ctx.fillText('البئر',well.x,well.y+55);
+ // gems
+ gems.forEach((g,i)=>{if(g.got)return;let pulse=1+Math.sin(performance.now()/250+i)*.08;ctx.save();ctx.translate(g.x,g.y);ctx.scale(pulse,pulse);ctx.fillStyle=['#63e6ff','#9b7bff','#6dff9a'][g.t];ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(13,0);ctx.lineTo(0,18);ctx.lineTo(-13,0);ctx.closePath();ctx.fill();ctx.strokeStyle='#fff';ctx.stroke();ctx.restore()});
+ // player
+ ctx.fillStyle='#2d6cdf';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(player.x-5,player.y-3,3,0,7);ctx.arc(player.x+5,player.y-3,3,0,7);ctx.fill();
+ if(started&&!won)update();
+ requestAnimationFrame(draw);
+}
+function update(){
+ let dx=(keys.right?1:0)-(keys.left?1:0),dy=(keys.down?1:0)-(keys.up?1:0);
+ if(dx||dy){let l=Math.hypot(dx,dy);player.x+=dx/l*player.s;player.y+=dy/l*player.s}
+ player.x=Math.max(25,Math.min(W-25,player.x));player.y=Math.max(75,Math.min(H-25,player.y));
+ for(const g of gems)if(!g.got&&Math.hypot(player.x-g.x,player.y-g.y)<30){g.got=true;score++;document.getElementById('score').textContent=score}
+ if(score===3&&Math.hypot(player.x-well.x,player.y-well.y)<well.r+22){won=true;document.getElementById('win').classList.remove('hidden')}
+}
+function key(e,down){let k=e.key.toLowerCase();let map={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'};if(map[k]){keys[map[k]]=down;e.preventDefault()}}
+addEventListener('keydown',e=>key(e,true));addEventListener('keyup',e=>key(e,false));
+document.querySelectorAll('.controls button').forEach(b=>{const k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[k]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,e=>{e.preventDefault();keys[k]=false}))});
+document.getElementById('start').onclick=()=>{started=true;document.getElementById('overlay').classList.add('hidden')};
+document.getElementById('again').onclick=()=>{reset(false);started=true;document.getElementById('win').classList.add('hidden')};
+resize();draw();
+</script>
+</body>
+</html>
